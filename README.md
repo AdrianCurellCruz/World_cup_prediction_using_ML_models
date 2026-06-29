@@ -102,7 +102,7 @@ The application will open automatically in your browser at `http://localhost:850
 
 ## Dependencies
 
-``
+
 streamlit>=1.32.0
 scikit-learn>=1.3.0
 joblib>=1.3.0
