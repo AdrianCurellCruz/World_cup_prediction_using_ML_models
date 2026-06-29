@@ -597,7 +597,7 @@ st.markdown(
 tab1, tab2, tab3 = st.tabs(["Bracket Simulation", "Probability Analysis", "Group Stage"])
 
 # =============================================================================
-# TAB 1 — BRACKET
+# TAB 1 — BRACKET SIMULATION
 # =============================================================================
 with tab1:
     col_btn, col_info = st.columns([2, 3])
@@ -617,16 +617,33 @@ with tab1:
                 if seed > 0:
                     random.seed(seed)
 
-                # Single simulation for the visual bracket
+                # ------------------------------------------------------------------
+                # 1. Run the first simulation (used for the visual bracket)
+                # ------------------------------------------------------------------
                 result = simulate_world_cup()
                 st.session_state["wc_results"] = result
 
-                # Aggregate statistics over n_sims runs
+                # ------------------------------------------------------------------
+                # 2. Initialise counters with the result from the bracket simulation
+                # ------------------------------------------------------------------
                 champion_counts = {t: 0 for t in TEAM_DATA}
                 final_counts    = {t: 0 for t in TEAM_DATA}
                 sf_counts       = {t: 0 for t in TEAM_DATA}
 
-                for _ in range(n_sims):
+                # Add the first simulation to the counters
+                champion_counts[result["champion"]] += 1
+                for m in result["final"]:
+                    final_counts[m["home"]] += 1
+                    final_counts[m["away"]] += 1
+                for m in result["sf"]:
+                    sf_counts[m["home"]] += 1
+                    sf_counts[m["away"]] += 1
+
+                # ------------------------------------------------------------------
+                # 3. Run additional simulations ONLY if n_sims > 1
+                #    (the first one is already counted)
+                # ------------------------------------------------------------------
+                for _ in range(n_sims - 1):
                     r = simulate_world_cup()
                     champion_counts[r["champion"]] += 1
                     for m in r["final"]:
@@ -636,13 +653,15 @@ with tab1:
                         sf_counts[m["home"]] += 1
                         sf_counts[m["away"]] += 1
 
+                # Save aggregated statistics to session state
                 st.session_state["champ_counts"] = champion_counts
                 st.session_state["final_counts"] = final_counts
                 st.session_state["sf_counts"]    = sf_counts
                 st.session_state["n_sims"]       = n_sims
 
+        # Retrieve the bracket simulation result
         result = st.session_state["wc_results"]
-        champ  = result["champion"]
+        champ = result["champion"]
 
         # Champion banner
         st.markdown(f"""
@@ -702,6 +721,7 @@ with tab1:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
 
 # =============================================================================
 # TAB 2 — PROBABILITY ANALYSIS
