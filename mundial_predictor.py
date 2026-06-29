@@ -254,10 +254,29 @@ def load_model():
 def load_h2h_data():
     with open('h2h_data.pkl', 'rb') as f:
         return pickle.load(f)
-
+@st.cache_resource
+def load_team_data():
+    try:
+        with open('team_data.pkl', 'rb') as f:
+            data = pickle.load(f)
+        for team in TEAM_DATA.keys():
+            if team not in data:
+                found = False
+                for key in data.keys():
+                    if team.lower() in key.lower() or key.lower() in team.lower():
+                        data[team] = data.pop(key)
+                        found = True
+                        break
+                if not found:
+                    data[team] = {'elo': 1500.0, 'goals_avg': 0.0}
+        return data
+    except FileNotFoundError:
+        return TEAM_DATA
 h2h_dict = load_h2h_data()
 
 model = load_model()
+TEAM_DATA_DYNAMIC = load_team_data()
+
 
 # ---------------------------------------------------------------------------
 # PREDICTION LOGIC
@@ -267,8 +286,8 @@ def predict_match(home: str,away: str):
     Return (prob_home_win, prob_draw, prob_away_win) for a given fixture.
     Falls back to an ELO-based estimate when the model file is unavailable.
     """
-    hd = TEAM_DATA[home]
-    ad = TEAM_DATA[away]
+    hd = TEAM_DATA_DYNAMIC[home]
+    ad = TEAM_DATA_DYNAMIC[away]
     elo_diff = hd["elo"] - ad["elo"]
     key = tuple(sorted([home, away]))
     if key in h2h_dict:
