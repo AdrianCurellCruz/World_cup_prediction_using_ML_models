@@ -21,6 +21,7 @@ Model output classes:
     0 = Draw, 1 = Home win, 2 = Away win
 """
 
+import pickle
 import random
 import warnings
 from pathlib import Path
@@ -248,20 +249,20 @@ def load_model():
     if model_path.exists():
         return joblib.load(model_path)
     return None
+@st.cache_resource
 
+def load_h2h_data():
+    with open('h2h_data.pkl', 'rb') as f:
+        return pickle.load(f)
+
+h2h_dict = load_h2h_data()
 
 model = load_model()
 
 # ---------------------------------------------------------------------------
 # PREDICTION LOGIC
 # ---------------------------------------------------------------------------
-def predict_match(
-    home: str,
-    away: str,
-    h2h_win_pct: float = 0.5,
-    h2h_goal_diff: float = 0.0,
-    h2h_count: int = 5,
-):
+def predict_match(home: str,away: str):
     """
     Return (prob_home_win, prob_draw, prob_away_win) for a given fixture.
     Falls back to an ELO-based estimate when the model file is unavailable.
@@ -269,7 +270,10 @@ def predict_match(
     hd = TEAM_DATA[home]
     ad = TEAM_DATA[away]
     elo_diff = hd["elo"] - ad["elo"]
-
+    key = tuple(sorted([home, away]))
+    if key in h2h_dict:
+        h2h_win_pct, h2h_goal_diff, h2h_count = h2h_dict[key]
+    
     features = np.array([[
         elo_diff,
         hd["elo"],
@@ -286,10 +290,7 @@ def predict_match(
         # classes order: 0=draw, 1=home_win, 2=away_win
         return float(proba[1]), float(proba[0]), float(proba[2])
 
-    # ELO-based fallback
-    base = 1.0 / (1.0 + 10 ** (-elo_diff / 400.0))
-    draw_prob = 0.25
-    return base * (1 - draw_prob), draw_prob, (1 - base) * (1 - draw_prob)
+
 
 
 def simulate_match(home: str, away: str, allow_draw: bool = True):
@@ -533,23 +534,35 @@ with st.sidebar:
     teams_list = sorted(TEAM_DATA.keys())
     home_team = st.selectbox("Home team", teams_list, index=teams_list.index("Spain"))
     away_team = st.selectbox("Away team", teams_list, index=teams_list.index("Brazil"))
+    is_knockout = st.checkbox("Knockout match (no draws allowed)", value=False)
+
 
     if home_team != away_team:
         ph, pd, pa = predict_match(home_team, away_team)
+        if is_knockout:
+            total = ph + pa
+            ph_display = ph / total
+            pa_display = pa / total
+            pd_display = 0.0
+            label_suffix = " (adjusted, no draws)"
+        else:
+            ph_display, pd_display, pa_display = ph, pd, pa
+            label_suffix = ""
         st.markdown(f"""
         <div style="margin-top:10px;">
             <div class="stat-box">
-                <div class="stat-label">{home_team} win probability</div>
-                <div class="stat-value">{ph * 100:.1f}%</div>
+                <div class="stat-label">{home_team} win probability{label_suffix}</div>
+                <div class="stat-value">{ph_display * 100:.1f}%</div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">Draw probability</div>
-                <div class="stat-value">{pd * 100:.1f}%</div>
+                <div class="stat-label">Draw probability{label_suffix}</div>
+                <div class="stat-value">{pd_display * 100:.1f}%</div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">{away_team} win probability</div>
-                <div class="stat-value">{pa * 100:.1f}%</div>
+                <div class="stat-label">{away_team} win probability{label_suffix}</div>
+                <div class="stat-value">{pa_display * 100:.1f}%</div>
             </div>
+             {f'<div style="color:#8b949e; font-size:12px; margin-top:4px;">Draw probability redistributed to Home and Away for knockout matches.</div>' if is_knockout else ''}
         </div>
         """, unsafe_allow_html=True)
 
