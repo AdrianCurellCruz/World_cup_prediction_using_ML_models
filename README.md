@@ -57,15 +57,7 @@ Select any two teams from the 48‑team pool and instantly get the model's predi
 
 
 
-## Project Structure
 
-
-world_cup_2026_prediction/
-├── worldcup2026_predictor.py   # Streamlit application (main entry point)
-├── model_training.ipynb        # Jupyter notebook with full pipeline
-├── best_rf_model.joblib        # Trained Random Forest model (required)
-├── requirements.txt            
-└── README.md                   # This file
 
 
 
@@ -110,7 +102,7 @@ The application will open automatically in your browser at `http://localhost:850
 
 ## Dependencies
 
-``
+
 streamlit>=1.32.0
 scikit-learn>=1.3.0
 joblib>=1.3.0
